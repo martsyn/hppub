@@ -1,0 +1,4 @@
+Strategy,Instrument,Direction,AvgPrice,Target,TakeProfitPrice,StopLossPrice,OpenTimestamp,CurrentPosition,RealizedPnl
+ADR,GLD,Short,172.37,1,169.88,180.33,9/24/2012
+ADR,SPY,Long,145.06,1,,,9/27/2012
+ADR,XLF,Long,15.83,2,16.45,13.66,9/25/2012
