@@ -1,16 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.ServiceModel;
 using GoalUploader.Properties;
 using Hp.Merlin.HedgeSense;
 using Hp.Merlin.Services;
+
+[assembly:log4net.Config.XmlConfigurator]
 
 namespace GoalUploader
 {
     static class GoalUploaderProgram
     {
-        private static readonly TextWriter Log = Console.Error;
+        private static readonly log4net.ILog Log =
+            log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         static int Main(string[] args)
         {
@@ -46,14 +48,9 @@ namespace GoalUploader
                         break;
                 }
             }
-            catch (FaultException x)
-            {
-                Log.WriteLine("Remote operation failed: {0}", x.Reason);
-                return 2;
-            }
             catch (Exception x)
             {
-                Log.WriteLine("{0}: {1}", x.GetType().Name, x.Message);
+                Log.Error("Operation failed", x);
                 return 1;
             }
             return 0;
@@ -61,7 +58,7 @@ namespace GoalUploader
 
         private static void SendGoals(string stratName, string path)
         {
-            Log.WriteLine("Parsing {0}...", path);
+            Log.DebugFormat("Parsing {0}...", path);
             string fileStratName;
             var goals = StrategyGoal.LoadGoals(path, true, out fileStratName);
 
@@ -73,40 +70,40 @@ namespace GoalUploader
             }
             else if (!string.IsNullOrEmpty(fileStratName) && stratName != fileStratName)
             {
-                Log.WriteLine(
+                Log.DebugFormat(
                     "Warning: strategy name from file ('{0}') mismatches command line argument ('{1}'): using '{2}'.",
                     fileStratName, stratName, stratName);
             }
 
             DumpGoals(stratName, goals);
 
-            Log.WriteLine("Sending goals...");
+            Log.Debug("Sending goals...");
             RemoteCall(
                 stratName, p =>
                     {
                         p.SetGoals(goals);
                         return true;
                     });
-            Log.WriteLine("Done.");
+            Log.Debug("Done.");
         }
 
         private static void RequestGoals(string stratName, string path)
         {
-            Log.WriteLine("Requesting goals...");
+            Log.DebugFormat("Requesting goals...");
             var goals = RemoteCall(stratName, p => p.GetCurrentGoals());
-            Log.WriteLine("Done.");
+            Log.DebugFormat("Done.");
             DumpGoals(stratName, goals);
 
-            Log.WriteLine("Saving list into {0}...", path);
+            Log.DebugFormat("Saving list into {0}...", path);
             using (var output = path != null ? new StreamWriter(path) : Console.Out)
                 StrategyGoal.SaveGoals(stratName, true, goals, output);
         }
 
         private static void DumpGoals(string strategyName, List<StrategyGoal> goals)
         {
-            Log.WriteLine("Got {0} goals for strategy {1}:", goals.Count, strategyName);
+            Log.DebugFormat("Got {0} goals for strategy {1}:", goals.Count, strategyName);
             foreach (var goal in (IEnumerable<StrategyGoal>) goals)
-                Log.WriteLine("\t{0}", goal);
+                Log.DebugFormat("\t{0}", goal);
         }
 
         private static void ShowUsage()
