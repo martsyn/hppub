@@ -149,7 +149,7 @@ namespace GoalUploader
             var list = RemoteCall(strategy, p => p.GetPnl(start));
             Console.WriteLine(
                 string.Join(
-                    "\t", new object[]
+                    ",", new object[]
                         {
                             "Strategy",
                             "Symbol",
@@ -174,7 +174,7 @@ namespace GoalUploader
             foreach (var i in list)
                 Console.WriteLine(
                     string.Join(
-                        "\t", new object[]
+                        ",", new object[]
                             {
                                 i.Strategy,
                                 i.Symbol,
