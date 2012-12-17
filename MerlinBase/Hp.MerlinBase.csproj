@@ -49,6 +49,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Oms\DetailedPnlEntry.cs" />
     <Compile Include="Oms\IOms.cs" />
     <Compile Include="Oms\Orders.cs" />
     <Compile Include="Oms\Position.cs" />

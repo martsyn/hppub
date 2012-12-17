@@ -30,6 +30,20 @@ namespace Hp.Merlin.Oms
         Suspended,
     }
 
+    public enum OrderTimeInForce
+    {
+        Day = 0,
+        GoodTillCancel = 1,
+        AtTheOpening = 2,
+        ImmediateOrCancel = 3,
+        FillOrKill = 4,
+        GoodTillCrossing = 5,
+        GoodTillDate = 6,
+        AtTheClose = 7,
+        GoodThroughCrossing = 8,
+        AtCrossing = 9,
+    }
+
     [Serializable]
     [KnownType(typeof(MarketOrder))]
     [KnownType(typeof(LimitOrder))]
@@ -41,9 +55,18 @@ namespace Hp.Merlin.Oms
         private string _strategyId;
         private string _symbol;
         private OrderSide _side;
-        private double _quantity;
+        private int _quantity;
+        private OrderTimeInForce _timeInForce;
+
         private OrderStatus _status;
         private DateTime _timestamp;
+        
+        private int _lastFilledQuantity;
+        private double _lastFilledPrice;
+        private int _totalFilledQuantity;
+        private double _totalFilledAvgPrice;
+
+        private string _description;
 
         public string RequestId
         {
@@ -69,10 +92,16 @@ namespace Hp.Merlin.Oms
             set { _side = value; }
         }
 
-        public double Quantity
+        public int Quantity
         {
             get { return _quantity; }
             set { _quantity = value; }
+        }
+
+        public OrderTimeInForce TimeInForce
+        {
+            get { return _timeInForce; }
+            set { _timeInForce = value; }
         }
 
         public OrderStatus Status
@@ -87,6 +116,36 @@ namespace Hp.Merlin.Oms
             set { _timestamp = value; }
         }
 
+        public int LastFilledQuantity
+        {
+            get { return _lastFilledQuantity; }
+            set { _lastFilledQuantity = value; }
+        }
+
+        public double LastFilledPrice
+        {
+            get { return _lastFilledPrice; }
+            set { _lastFilledPrice = value; }
+        }
+
+        public int TotalFilledQuantity
+        {
+            get { return _totalFilledQuantity; }
+            set { _totalFilledQuantity = value; }
+        }
+
+        public double TotalFilledAvgPrice
+        {
+            get { return _totalFilledAvgPrice; }
+            set { _totalFilledAvgPrice = value; }
+        }
+
+        public string Description
+        {
+            get { return _description; }
+            set { _description = value; }
+        }
+
         public override string ToString()
         {
             var res = new StringBuilder();
@@ -94,19 +153,20 @@ namespace Hp.Merlin.Oms
             res.Append('(');
             res.Append(StrategyId ?? "<no-strat>");
             res.Append("): ");
-            res.Append(Side);
+            res.Append(Side).Append(' ');
             res.Append(Quantity);
             res.Append('x');
             res.Append(Symbol ?? "<no-symbol>");
             res.Append(' ');
             res.Append(ParametersToString());
+            if (TimeInForce != default(OrderTimeInForce))
+                res.Append(" - ").Append(TimeInForce);
             res.Append(": ");
             res.Append(Status);
             if (Timestamp != default(DateTime))
-            {
-                res.Append(" ");
-                res.Append(Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-            }
+                res.Append(' ').Append(Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            if (_description != null)
+                res.Append(' ').Append(_description);
 
             return res.ToString();
         }

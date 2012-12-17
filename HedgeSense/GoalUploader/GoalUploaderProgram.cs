@@ -28,9 +28,9 @@ namespace GoalUploader
                             if (args.Length < 2 || args.Length > 3)
                                 ShowUsage();
 
-                            string stratName = args.Length > 2 ? args[1] : null;
+                            string strategy = args.Length > 2 ? args[1] : null;
                             string path = args.Length > 2 ? args[2] : args[1];
-                            SendGoals(stratName, path);
+                            SendGoals(strategy, path);
                         }
                         break;
                     case "-r":
@@ -38,9 +38,33 @@ namespace GoalUploader
                             if (args.Length < 2 || args.Length > 3)
                                 ShowUsage();
 
-                            string stratName = args[1];
+                            string strategy = args[1];
                             string path = args.Length > 2 ? args[2] : null;
-                            RequestGoals(stratName, path);
+                            RequestGoals(strategy, path);
+                        }
+                        break;
+                    case "-o":
+                    case "-t":
+                    case "-p":
+                        {
+                            if (args.Length < 2 || args.Length > 3)
+                                ShowUsage();
+
+                            string strategy = args[1];
+                            DateTime start = args.Length == 3 ? DateTime.Parse(args[2]) : default(DateTime);
+
+                            switch (args[0][1])
+                            {
+                                case 'o':
+                                    RequestOrderHistory(strategy, start);
+                                    break;
+                                case 't':
+                                    RequestTransactionHistory(strategy, start);
+                                    break;
+                                case 'p':
+                                    RequestPnl(strategy, start);
+                                    break;
+                            }
                         }
                         break;
                     default:
@@ -56,30 +80,30 @@ namespace GoalUploader
             return 0;
         }
 
-        private static void SendGoals(string stratName, string path)
+        private static void SendGoals(string strategy, string path)
         {
             Log.DebugFormat("Parsing {0}...", path);
-            string fileStratName;
-            var goals = StrategyGoal.LoadGoals(path, true, out fileStratName);
+            string strategyFromFile;
+            var goals = StrategyGoal.LoadGoals(path, true, out strategyFromFile);
 
-            if (string.IsNullOrEmpty(stratName))
+            if (string.IsNullOrEmpty(strategy))
             {
-                if (string.IsNullOrEmpty(fileStratName))
+                if (string.IsNullOrEmpty(strategyFromFile))
                     throw new Exception("Specify strategy name either in first column or via command line argument");
-                stratName = fileStratName;
+                strategy = strategyFromFile;
             }
-            else if (!string.IsNullOrEmpty(fileStratName) && stratName != fileStratName)
+            else if (!string.IsNullOrEmpty(strategyFromFile) && strategy != strategyFromFile)
             {
                 Log.DebugFormat(
                     "Warning: strategy name from file ('{0}') mismatches command line argument ('{1}'): using '{2}'.",
-                    fileStratName, stratName, stratName);
+                    strategyFromFile, strategy, strategy);
             }
 
-            DumpGoals(stratName, goals);
+            DumpGoals(strategy, goals);
 
             Log.Debug("Sending goals...");
             RemoteCall(
-                stratName, p =>
+                strategy, p =>
                     {
                         p.SetGoals(goals);
                         return true;
@@ -87,16 +111,16 @@ namespace GoalUploader
             Log.Debug("Done.");
         }
 
-        private static void RequestGoals(string stratName, string path)
+        private static void RequestGoals(string strategy, string path)
         {
             Log.DebugFormat("Requesting goals...");
-            var goals = RemoteCall(stratName, p => p.GetCurrentGoals());
+            var goals = RemoteCall(strategy, p => p.GetCurrentGoals());
             Log.DebugFormat("Done.");
-            DumpGoals(stratName, goals);
+            DumpGoals(strategy, goals);
 
             Log.DebugFormat("Saving list into {0}...", path);
             using (var output = path != null ? new StreamWriter(path) : Console.Out)
-                StrategyGoal.SaveGoals(stratName, true, goals, output);
+                StrategyGoal.SaveGoals(strategy, true, goals, output);
         }
 
         private static void DumpGoals(string strategyName, List<StrategyGoal> goals)
@@ -106,22 +130,94 @@ namespace GoalUploader
                 Log.DebugFormat("\t{0}", goal);
         }
 
+        private static void RequestOrderHistory(string strategy, DateTime start)
+        {
+            var list = RemoteCall(strategy, p => p.GetOrderHistory(start));
+            foreach (var i in list)
+                Console.WriteLine(i);
+        }
+
+        private static void RequestTransactionHistory(string strategy, DateTime start)
+        {
+            var list = RemoteCall(strategy, p => p.GetTransactionHistory(start));
+            foreach (var i in list)
+                Console.WriteLine(i);
+        }
+
+        private static void RequestPnl(string strategy, DateTime start)
+        {
+            var list = RemoteCall(strategy, p => p.GetPnl(start));
+            Console.WriteLine(
+                string.Join(
+                    "\t", new object[]
+                        {
+                            "Strategy",
+                            "Symbol",
+                            "LastClosePosition",
+                            "LastClosePrice",
+                            "LastCloseMarketValue",
+                            "TransactionCount",
+                            "BoughtAmount",
+                            "BoughtAvgPrice",
+                            "SoldAmount",
+                            "SoldAvgPrice",
+                            "ManualAdjustments",
+                            "OtherTransactions",
+                            "AvgPriceSinceOpen",
+                            "CurrentPosition",
+                            "CurrentPrice",
+                            "CurrentMarketValue",
+                            "RealizedPnl",
+                            "UnrealizedPnl",
+                            "TotalPnl",
+                        }));
+            foreach (var i in list)
+                Console.WriteLine(
+                    string.Join(
+                        "\t", new object[]
+                            {
+                                i.Strategy,
+                                i.Symbol,
+                                i.LastClosePosition,
+                                i.LastClosePrice,
+                                i.LastCloseMarketValue,
+                                i.TransactionCount,
+                                i.BoughtAmount,
+                                i.BoughtAvgPrice,
+                                i.SoldAmount,
+                                i.SoldAvgPrice,
+                                i.ManualAdjustments,
+                                i.OtherTransactions,
+                                i.AvgPriceSinceOpen,
+                                i.CurrentPosition,
+                                i.CurrentPrice,
+                                i.CurrentMarketValue,
+                                i.RealizedPnl,
+                                i.UnrealizedPnl,
+                                i.TotalPnl,
+                            }));
+        }
+
         private static void ShowUsage()
         {
             throw new Exception(@"
-Usage examples:
+Usage:
 
-  GoalUploader -s strategy_name goals.tsv
-    -- sends goals contained in goals.tsv for strategy_name
+  GoalUploader -s [strategy_name] goals.tsv
+    -- Sends goals contained in goals.tsv for strategy_name. If name is omitted, 
+       file's first column is used.
 
-  GoalUploader -s goals.tsv
-    -- sends goals contained in goals.tsv for strategy_name read from file's first column
+  GoalUploader -r strategy_name [file]
+    -- Displays or saves current goals for strategy_name.
 
-  GoalUploader -r strategy_name goals.tsv
-    -- requests and saves current goals for strategy_name in goals.tsv:
+  GoalUploader -o strategy_name [start-date]
+    -- Displays order history.
 
-  GoalUploader -r strategy_name
-    -- requests and displays current goals for strategy_name
+  GoalUploader -t strategy_name [start-date]
+    -- Displays transaction history.
+
+  GoalUploader -p strategy_name [start-date]
+    -- Displays current PNL.
 ");
         }
 
