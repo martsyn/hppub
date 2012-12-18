@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.Serialization;
 using System.Text;
 
 namespace Hp.Merlin.Oms
@@ -10,6 +9,15 @@ namespace Hp.Merlin.Oms
         Buy,
         Sell,
         SellShort,
+    }
+
+    public enum OrderType
+    {
+        Invalid,
+        Market,
+        Limit,
+        Stop,
+        StopLimit,
     }
 
     public enum OrderStatus
@@ -45,27 +53,23 @@ namespace Hp.Merlin.Oms
     }
 
     [Serializable]
-    [KnownType(typeof(MarketOrder))]
-    [KnownType(typeof(LimitOrder))]
-    [KnownType(typeof(StopOrder))]
-    [KnownType(typeof(StopLimitOrder))]
-    public abstract class Order
+    public class Order
     {
         private string _requestId;
         private string _strategyId;
         private string _symbol;
         private OrderSide _side;
         private int _quantity;
+        private OrderType _type;
+        private double _price;
+        private double _stopPrice;
         private OrderTimeInForce _timeInForce;
-
         private OrderStatus _status;
         private DateTime _timestamp;
-        
         private int _lastFilledQuantity;
         private double _lastFilledPrice;
         private int _totalFilledQuantity;
         private double _totalFilledAvgPrice;
-
         private string _description;
 
         public string RequestId
@@ -96,6 +100,24 @@ namespace Hp.Merlin.Oms
         {
             get { return _quantity; }
             set { _quantity = value; }
+        }
+
+        public OrderType Type
+        {
+            get { return _type; }
+            set { _type = value; }
+        }
+
+        public double Price
+        {
+            get { return _price; }
+            set { _price = value; }
+        }
+
+        public double StopPrice
+        {
+            get { return _stopPrice; }
+            set { _stopPrice = value; }
         }
 
         public OrderTimeInForce TimeInForce
@@ -153,12 +175,13 @@ namespace Hp.Merlin.Oms
             res.Append('(');
             res.Append(StrategyId ?? "<no-strat>");
             res.Append("): ");
-            res.Append(Side).Append(' ');
-            res.Append(Quantity);
-            res.Append('x');
-            res.Append(Symbol ?? "<no-symbol>");
+            res.Append(Side);
+            res.Append(' ').Append(Quantity);
+            res.Append('x').Append(Symbol ?? "<no-symbol>");
+            res.Append(' ').Append(Type);
+            res.Append(" lmt=").Append(Price);
+            res.Append(" stp=").Append(StopPrice);
             res.Append(' ');
-            res.Append(ParametersToString());
             if (TimeInForce != default(OrderTimeInForce))
                 res.Append(" - ").Append(TimeInForce);
             res.Append(": ");
@@ -169,48 +192,6 @@ namespace Hp.Merlin.Oms
                 res.Append(' ').Append(_description);
 
             return res.ToString();
-        }
-
-        protected abstract string ParametersToString();
-    }
-
-    [Serializable]
-    public class MarketOrder : Order
-    {
-        protected override string ParametersToString()
-        {
-            return "MKT";
-        }
-    }
-
-    [Serializable]
-    public class LimitOrder : Order
-    {
-        public double Price { get; set; }
-        protected override string ParametersToString()
-        {
-            return "LMT @" + Price;
-        }
-    }
-
-    [Serializable]
-    public class StopOrder : Order
-    {
-        public double StopPrice { get; set; }
-        protected override string ParametersToString()
-        {
-            return "STP @" + StopPrice;
-        }
-    }
-
-    [Serializable]
-    public class StopLimitOrder : Order
-    {
-        public double StopPrice { get; set; }
-        public double Price { get; set; }
-        protected override string ParametersToString()
-        {
-            return string.Format("STPLMT @{0}::{1}", StopPrice, Price);
         }
     }
 }

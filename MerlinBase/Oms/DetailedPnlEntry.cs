@@ -138,5 +138,16 @@ namespace Hp.Merlin.Oms
             get { return _totalPnl; }
             set { _totalPnl = value; }
         }
+
+        public override string ToString()
+        {
+            return
+                string.Format(
+                    "Strategy: {0}, Symbol: {1}, LastClosePosition: {2}, LastClosePrice: {3}, LastCloseMarketValue: {4}, TransactionCount: {5}, BoughtAmount: {6}, BoughtAvgPrice: {7}, SoldAmount: {8}, SoldAvgPrice: {9}, ManualAdjustments: {10}, OtherTransactions: {11}, AvgPriceSinceOpen: {12}, CurrentPosition: {13}, CurrentPrice: {14}, CurrentMarketValue: {15}, RealizedPnl: {16}, UnrealizedPnl: {17}, TotalPnl: {18}",
+                    Strategy, Symbol, LastClosePosition, LastClosePrice, LastCloseMarketValue, TransactionCount,
+                    BoughtAmount, BoughtAvgPrice, SoldAmount, SoldAvgPrice, ManualAdjustments, OtherTransactions,
+                    AvgPriceSinceOpen, CurrentPosition, CurrentPrice, CurrentMarketValue, RealizedPnl, UnrealizedPnl,
+                    TotalPnl);
+        }
     }
 }

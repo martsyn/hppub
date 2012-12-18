@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using GoalUploader.Properties;
 using Hp.Merlin.HedgeSense;
@@ -19,62 +20,83 @@ namespace GoalUploader
             try
             {
                 if (args.Length < 1)
-                    ShowUsage();
+                    ShowUsage("Command expected");
 
-                switch (args[0])
+                string command = args[0];
+                string strategy = null;
+                string outFile = null;
+                string inFile = null;
+                DateTime start = default(DateTime);
+
+
+                for (int i = 1; i < args.Length; ++i)
                 {
-                    case "-s":
-                        {
-                            if (args.Length < 2 || args.Length > 3)
-                                ShowUsage();
+                    switch (args[i])
+                    {
+                        case "-s":
+                            if (++i < args.Length)
+                                strategy = args[i];
+                            else
+                                ShowUsage("Strategy expected");
+                            break;
+                        case "-i":
+                            if (++i < args.Length)
+                                inFile = args[i];
+                            else
+                                ShowUsage("Input filename expected");
+                            break;
+                        case "-o":
+                            if (++i < args.Length)
+                                outFile = args[i];
+                            else
+                                ShowUsage("Output filename expected");
+                            break;
+                        case "-t":
+                            if (++i < args.Length)
+                                start = DateTime.ParseExact(args[i], "yyyy/MM/dd", CultureInfo.InvariantCulture);
+                            else
+                                ShowUsage("Start time expected");
+                            break;
+                    }
+                }
 
-                            string strategy = args.Length > 2 ? args[1] : null;
-                            string path = args.Length > 2 ? args[2] : args[1];
-                            SendGoals(strategy, path);
-                        }
-                        break;
-                    case "-r":
-                        {
-                            if (args.Length < 2 || args.Length > 3)
-                                ShowUsage();
+                if (strategy == null)
+                    ShowUsage("Strategy not specified");
 
-                            string strategy = args[1];
-                            string path = args.Length > 2 ? args[2] : null;
-                            RequestGoals(strategy, path);
-                        }
-                        break;
-                    case "-o":
-                    case "-t":
-                    case "-p":
-                        {
-                            if (args.Length < 2 || args.Length > 3)
-                                ShowUsage();
+                TextWriter output = outFile != null ? new StreamWriter(outFile) : Console.Out;
 
-                            string strategy = args[1];
-                            DateTime start = args.Length == 3 ? DateTime.Parse(args[2]) : default(DateTime);
-
-                            switch (args[0][1])
-                            {
-                                case 'o':
-                                    RequestOrderHistory(strategy, start);
-                                    break;
-                                case 't':
-                                    RequestTransactionHistory(strategy, start);
-                                    break;
-                                case 'p':
-                                    RequestPnl(strategy, start);
-                                    break;
-                            }
-                        }
-                        break;
-                    default:
-                        ShowUsage();
-                        break;
+                try
+                {
+                    switch (command)
+                    {
+                        case "set":
+                            if (inFile == null)
+                                ShowUsage("Input file not specified");
+                            SendGoals(strategy, inFile);
+                            break;
+                        case "get":
+                            RequestGoals(strategy, output);
+                            break;
+                        case "orders":
+                            RequestOrderHistory(strategy, start, output);
+                            break;
+                        case "transactions":
+                            RequestTransactionHistory(strategy, start, output);
+                            break;
+                        case "pnl":
+                            RequestPnl(strategy, start, output);
+                            break;
+                    }
+                }
+                finally
+                {
+                    if (outFile != null)
+                        output.Close();
                 }
             }
             catch (Exception x)
             {
-                Log.Error("Operation failed", x);
+                Log.Error(x.Message);
                 return 1;
             }
             return 0;
@@ -111,16 +133,13 @@ namespace GoalUploader
             Log.Debug("Done.");
         }
 
-        private static void RequestGoals(string strategy, string path)
+        private static void RequestGoals(string strategy, TextWriter output)
         {
             Log.DebugFormat("Requesting goals...");
             var goals = RemoteCall(strategy, p => p.GetCurrentGoals());
             Log.DebugFormat("Done.");
             DumpGoals(strategy, goals);
-
-            Log.DebugFormat("Saving list into {0}...", path);
-            using (var output = path != null ? new StreamWriter(path) : Console.Out)
-                StrategyGoal.SaveGoals(strategy, true, goals, output);
+            StrategyGoal.SaveGoals(strategy, true, goals, output);
         }
 
         private static void DumpGoals(string strategyName, List<StrategyGoal> goals)
@@ -130,26 +149,113 @@ namespace GoalUploader
                 Log.DebugFormat("\t{0}", goal);
         }
 
-        private static void RequestOrderHistory(string strategy, DateTime start)
+        private static void RequestOrderHistory(string strategy, DateTime start, TextWriter output)
         {
             var list = RemoteCall(strategy, p => p.GetOrderHistory(start));
+
+            Log.DebugFormat("Got {0} entries:", list.Count);
             foreach (var i in list)
-                Console.WriteLine(i);
+                Log.DebugFormat("\t{0}", i);
+
+            output.WriteLine(
+                string.Join(
+                    ",", new[]
+                        {
+                            "RequestId",
+                            "StrategyId",
+                            "Symbol",
+                            "Side",
+                            "Quantity",
+                            "Type",
+                            "Price",
+                            "StopPrice",
+                            "TimeInForce",
+                            "Status",
+                            "Timestamp",
+                            "LastFilledQuantity",
+                            "LastFilledPrice",
+                            "TotalFilledQuantity",
+                            "TotalFilledAvgPrice",
+                            "Description",
+                        }));
+            foreach (var i in list)
+            {
+                output.WriteLine(
+                    string.Join(
+                        ",", new object[]
+                            {
+                                i.RequestId,
+                                i.StrategyId,
+                                i.Symbol,
+                                i.Side,
+                                i.Quantity,
+                                i.Type,
+                                i.Price,
+                                i.StopPrice,
+                                i.TimeInForce,
+                                i.Status,
+                                i.Timestamp.ToString("yyyy/MM/dd HH:mm:ss.fff"),
+                                i.LastFilledQuantity,
+                                i.LastFilledPrice,
+                                i.TotalFilledQuantity,
+                                i.TotalFilledAvgPrice,
+                                i.Description,
+                            }));
+            }
         }
 
-        private static void RequestTransactionHistory(string strategy, DateTime start)
+        private static void RequestTransactionHistory(string strategy, DateTime start, TextWriter output)
         {
             var list = RemoteCall(strategy, p => p.GetTransactionHistory(start));
+
+            Log.DebugFormat("Got {0} entries:", list.Count);
             foreach (var i in list)
-                Console.WriteLine(i);
+                Log.DebugFormat("\t{0}", i);
+
+            output.WriteLine(
+                string.Join(
+                    ",", new[]
+                        {
+                            "Timestamp",
+                            "StrategyId",
+                            "OrderRequestId",
+                            "Symbol",
+                            "Quantity",
+                            "Price",
+                            "Action",
+                            "Commission",
+                            "Description",
+                        }));
+            foreach (var i in list)
+            {
+                output.WriteLine(
+                    string.Join(
+                        ",", new object[]
+                            {
+                                i.Timestamp.ToString("yyyy/MM/dd HH:mm:ss.fff"),
+                                i.StrategyId,
+                                i.OrderRequestId,
+                                i.Symbol,
+                                i.Quantity,
+                                i.Price,
+                                i.Action,
+                                i.Commission,
+                                i.Description,
+                            }));
+            }
         }
 
-        private static void RequestPnl(string strategy, DateTime start)
+        private static void RequestPnl(string strategy, DateTime start, TextWriter output)
         {
             var list = RemoteCall(strategy, p => p.GetPnl(start));
-            Console.WriteLine(
+
+            Log.DebugFormat("Got {0} entries:", list.Count);
+            foreach (var i in list)
+                Log.DebugFormat("\t{0}", i);
+            
+            output.WriteLine(
                 string.Join(
-                    ",", new object[]
+                    ",", new[]
                         {
                             "Strategy",
                             "Symbol",
@@ -172,7 +278,7 @@ namespace GoalUploader
                             "TotalPnl",
                         }));
             foreach (var i in list)
-                Console.WriteLine(
+                output.WriteLine(
                     string.Join(
                         ",", new object[]
                             {
@@ -198,33 +304,41 @@ namespace GoalUploader
                             }));
         }
 
-        private static void ShowUsage()
+        private static void ShowUsage(string error)
         {
-            throw new Exception(@"
+            const string usage = @"
 Usage:
 
-  GoalUploader -s [strategy_name] goals.tsv
-    -- Sends goals contained in goals.tsv for strategy_name. If name is omitted, 
-       file's first column is used.
+    GoalUploader.exe command [options]
 
-  GoalUploader -r strategy_name [file]
-    -- Displays or saves current goals for strategy_name.
+Commands:
 
-  GoalUploader -o strategy_name [start-date]
-    -- Displays order history.
+    set             Sets goals from input file
+    get             Retrieves current goals
+    orders          Retrieves order history
+    transactions    Retrieves transaction history
+    pnl             Retrieves PNL report
 
-  GoalUploader -t strategy_name [start-date]
-    -- Displays transaction history.
+Options:
 
-  GoalUploader -p strategy_name [start-date]
-    -- Displays current PNL.
-");
+    -s strategy     Strategy name
+    -i filename     Input filename
+    -o filename     Output filename (stdout, if unspecified)
+    -t YYYY/MM/DD   Start date for historical and PNL commands
+
+Examples:
+
+    GoalUploader.exe set -s STRATEGY -i goals.csv
+    GoalUploader.exe get -s STRATEGY
+    GoalUploader.exe pnl -s STRATEGY -t 2013/01/01 -o STRATEGY.pnl.csv";
+
+            throw new Exception(error != null ? error + usage : usage);
         }
 
-        private static T RemoteCall<T>(string strategyName, Func<IGoalsStrategy, T> operation)
+        private static T RemoteCall<T>(string strategy, Func<IGoalsStrategy, T> operation)
         {
             var proxy = WebConstants.GetServiceBusProxy<IGoalsStrategy>(
-                Settings.Default.MerlinBusDomain, ProcessType.Strategy, strategyName,
+                Settings.Default.MerlinBusDomain, ProcessType.Strategy, strategy,
                 Settings.Default.MerlinBusUserName, Settings.Default.MerlinBusSharedSecret);
 
 // ReSharper disable SuspiciousTypeConversion.Global
