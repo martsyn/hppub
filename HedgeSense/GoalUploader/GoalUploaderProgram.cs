@@ -27,7 +27,7 @@ namespace GoalUploader
                 string outFile = null;
                 string inFile = null;
                 DateTime start = default(DateTime);
-
+                string[] symbols = null;
 
                 for (int i = 1; i < args.Length; ++i)
                 {
@@ -57,6 +57,12 @@ namespace GoalUploader
                             else
                                 ShowUsage("Start time expected");
                             break;
+                        case "-n":
+                            if (++i < args.Length)
+                                symbols = args[i].Split(',', '|', ';');
+                            else
+                                ShowUsage("Start time expected");
+                            break;
                     }
                 }
 
@@ -74,6 +80,9 @@ namespace GoalUploader
                                 ShowUsage("Input file not specified");
                             SendGoals(strategy, inFile);
                             break;
+                        case "close":
+                            Close(strategy, symbols);
+                            break;
                         case "get":
                             RequestGoals(strategy, output);
                             break;
@@ -85,6 +94,9 @@ namespace GoalUploader
                             break;
                         case "pnl":
                             RequestPnl(strategy, start, output);
+                            break;
+                        default:
+                            ShowUsage("Unknown command: " + command);
                             break;
                     }
                 }
@@ -128,6 +140,19 @@ namespace GoalUploader
                 strategy, p =>
                     {
                         p.SetGoals(goals);
+                        return true;
+                    });
+            Log.Debug("Done.");
+        }
+
+        private static void Close(string strategy, string[] instruments)
+        {
+            Log.DebugFormat(
+                "Closing {0}: {1}", strategy, instruments != null ? string.Join(", ", instruments) : "all targets");
+            RemoteCall(
+                strategy, p =>
+                    {
+                        p.Close(instruments);
                         return true;
                     });
             Log.Debug("Done.");
@@ -313,18 +338,22 @@ Usage:
 
 Commands:
 
-    set             Sets goals from input file
-    get             Retrieves current goals
-    orders          Retrieves order history
-    transactions    Retrieves transaction history
-    pnl             Retrieves PNL report
+    set           - Sets goals from input file.
+    close         - Resets the target of specified instrument (or all targets,
+                    if instrument is omitted) to 0 and closes the position
+                    immediately.
+    get           - Retrieves current goals.
+    orders        - Retrieves order history.
+    transactions  - Retrieves transaction history.
+    pnl           - Retrieves PNL report.
 
 Options:
 
-    -s strategy     Strategy name
-    -i filename     Input filename
-    -o filename     Output filename (stdout, if unspecified)
-    -t YYYY/MM/DD   Start date for historical and PNL commands
+    -s strategy   - Strategy name.
+    -i filename   - Input filename.
+    -o filename   - Output filename (stdout, if unspecified).
+    -t YYYY/MM/DD - Start date for historical and PNL commands.
+    -n symbol     - Instrument ticker.
 
 Examples:
 

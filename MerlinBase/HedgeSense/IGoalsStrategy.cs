@@ -13,6 +13,9 @@ namespace Hp.Merlin.HedgeSense
         void SetGoals(IList<StrategyGoal> goals);
 
         [OperationContract]
+        void Close(IList<string> symbols);
+
+        [OperationContract]
         List<StrategyGoal> GetCurrentGoals();
 
         [OperationContract]
