@@ -9,6 +9,7 @@ namespace Hp.Merlin.Oms
         ManualAdjustment,
         Bought,
         Sold,
+        BoughtCover,
         SoldShort,
         Dividend,
         Split,
