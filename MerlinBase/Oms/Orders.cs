@@ -7,6 +7,7 @@ namespace Hp.Merlin.Oms
     {
         Invalid,
         Buy,
+        BuyCover,
         Sell,
         SellShort,
     }

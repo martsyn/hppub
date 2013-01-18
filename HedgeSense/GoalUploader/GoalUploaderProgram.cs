@@ -28,6 +28,7 @@ namespace GoalUploader
                 string inFile = null;
                 DateTime start = default(DateTime);
                 string[] symbols = null;
+                StrategyGoalVersion version= StrategyGoalVersion.Original;
 
                 for (int i = 1; i < args.Length; ++i)
                 {
@@ -63,6 +64,15 @@ namespace GoalUploader
                             else
                                 ShowUsage("Start time expected");
                             break;
+                        case "-v":
+                            if (++i < args.Length)
+                                version = (StrategyGoalVersion) Enum.Parse(typeof (StrategyGoalVersion), args[i]);
+                            else
+                                ShowUsage("Version expected");
+                            break;
+                        default:
+                            ShowUsage("Unknown option " + args[i]);
+                            break;
                     }
                 }
 
@@ -84,7 +94,7 @@ namespace GoalUploader
                             Close(strategy, symbols);
                             break;
                         case "get":
-                            RequestGoals(strategy, output);
+                            RequestGoals(strategy, output, version);
                             break;
                         case "orders":
                             RequestOrderHistory(strategy, start, output);
@@ -158,13 +168,13 @@ namespace GoalUploader
             Log.Debug("Done.");
         }
 
-        private static void RequestGoals(string strategy, TextWriter output)
+        private static void RequestGoals(string strategy, TextWriter output, StrategyGoalVersion version)
         {
             Log.DebugFormat("Requesting goals...");
             var goals = RemoteCall(strategy, p => p.GetCurrentGoals());
             Log.DebugFormat("Done.");
             DumpGoals(strategy, goals);
-            StrategyGoal.SaveGoals(strategy, true, goals, output);
+            StrategyGoal.SaveGoals(strategy, true, goals, output, version);
         }
 
         private static void DumpGoals(string strategyName, List<StrategyGoal> goals)
