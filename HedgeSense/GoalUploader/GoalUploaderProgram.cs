@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.ServiceModel;
 using GoalUploader.Properties;
 using Hp.Merlin.HedgeSense;
 using Hp.Merlin.Services;
@@ -28,7 +29,7 @@ namespace GoalUploader
                 string inFile = null;
                 DateTime start = default(DateTime);
                 string[] symbols = null;
-                StrategyGoalVersion version= StrategyGoalVersion.Original;
+                StrategyGoalVersion version = StrategyGoalVersion.Original;
 
                 for (int i = 1; i < args.Length; ++i)
                 {
@@ -119,6 +120,8 @@ namespace GoalUploader
             catch (Exception x)
             {
                 Log.Error(x.Message);
+                if (x is CommunicationObjectFaultedException)
+                    return 2;
                 return 1;
             }
             return 0;
