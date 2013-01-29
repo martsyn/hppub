@@ -38,6 +38,9 @@ namespace Hp.Merlin.HedgeSense
         private double _currentTakeProfitPrice;
         private double _currentStopLossPrice;
 
+        /// <summary>
+        /// Horton Point symbology
+        /// </summary>
         public string Instrument
         {
             get { return _instrument; }
@@ -189,6 +192,9 @@ namespace Hp.Merlin.HedgeSense
             return goals;
         }
 
+        /// <summary>
+        /// From either symbology
+        /// </summary>
         private static StrategyGoal FromCsvString(string line, out string strategy)
         {
             var parts = line.Split(new[] {'\t', ','});
@@ -213,6 +219,8 @@ namespace Hp.Merlin.HedgeSense
 
             if (symbol.Length == 0)
                 throw new Exception("Instrument is missing");
+
+            string instrument = SecurityMaster.FromHSSymbol(symbol);
 
             double avgPrice;
             double.TryParse(avgPriceStr, out avgPrice);
@@ -261,7 +269,7 @@ namespace Hp.Merlin.HedgeSense
             var currentStopLossPrice = ParseDouble(currentStopLossPriceStr, stop);
 
             var goal = new StrategyGoal(
-                symbol, target, limit, stop,
+                instrument, target, limit, stop,
                 openDate, currentPosition, avgPrice, realizedPnl,
                 newBracketEffectiveDate, currentTakeProfitPrice, currentStopLossPrice);
             return goal;
@@ -310,12 +318,16 @@ namespace Hp.Merlin.HedgeSense
                 output.WriteLine(g.ToCsvString(strategyName, version));
         }
 
+        /// <summary>
+        /// Hedge Sense symbology
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             var res = new StringBuilder();
             res.AppendFormat(
                 "{0,-5}x{1,6} limit={2,8} stop={3,8}",
-                _instrument, _target,
+                SecurityMaster.ToHSSymbol(_instrument), _target,
                 _takeProfitPrice != 0 ? _takeProfitPrice.ToString("$0.00####") : "n/a",
                 _stopLossPrice != 0 ? _stopLossPrice.ToString("$0.00####") : "n/a");
             if (_openTimestamp != default(DateTime))
@@ -336,12 +348,15 @@ namespace Hp.Merlin.HedgeSense
             return res.ToString();
         }
 
+        /// <summary>
+        /// Hedge Sense symbology
+        /// </summary>
         private string ToCsvString(string strategyName, StrategyGoalVersion version)
         {
             var columns = new List<string>
                 {
                     strategyName,
-                    _instrument,
+                    SecurityMaster.ToHSSymbol(_instrument),
                     _target == 0 ? "" : _target > 0 ? "Long" : "Short",
                     FormatDouble(_avgPrice),
                     _target == 0 ? "" : Math.Abs(_target).ToString(StorageCulture),

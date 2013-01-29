@@ -189,8 +189,8 @@ namespace Hp.Merlin.Oms
             res.Append(Status);
             if (Timestamp != default(DateTime))
                 res.Append(' ').Append(Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-            if (_description != null)
-                res.Append(' ').Append(_description);
+            if (Description != null)
+                res.Append(' ').Append(Description);
 
             return res.ToString();
         }

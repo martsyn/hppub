@@ -6,6 +6,7 @@ using System.ServiceModel;
 using GoalUploader.Properties;
 using Hp.Merlin.HedgeSense;
 using Hp.Merlin.Services;
+using System.Linq;
 
 [assembly:log4net.Config.XmlConfigurator]
 
@@ -161,11 +162,14 @@ namespace GoalUploader
         private static void Close(string strategy, string[] instruments)
         {
             Log.DebugFormat(
-                "Closing {0}: {1}", strategy, instruments != null ? string.Join(", ", instruments) : "all targets");
+                "Closing {0}: {1}", strategy,
+                instruments != null
+                    ? string.Join(", ", instruments)
+                    : "all targets");
             RemoteCall(
                 strategy, p =>
                     {
-                        p.Close(instruments);
+                        p.Close(instruments != null ? instruments.Select(SecurityMaster.FromHSSymbol).ToList() : null);
                         return true;
                     });
             Log.Debug("Done.");
@@ -193,53 +197,11 @@ namespace GoalUploader
 
             Log.DebugFormat("Got {0} entries:", list.Count);
             foreach (var i in list)
-                Log.DebugFormat("\t{0}", i);
+                Log.DebugFormat("\t{0}", i.ToHSString());
 
-            output.WriteLine(
-                string.Join(
-                    ",", new[]
-                        {
-                            "RequestId",
-                            "StrategyId",
-                            "Symbol",
-                            "Side",
-                            "Quantity",
-                            "Type",
-                            "Price",
-                            "StopPrice",
-                            "TimeInForce",
-                            "Status",
-                            "Timestamp",
-                            "LastFilledQuantity",
-                            "LastFilledPrice",
-                            "TotalFilledQuantity",
-                            "TotalFilledAvgPrice",
-                            "Description",
-                        }));
+            output.WriteLine(SecurityMaster.OrderCsvHeader);
             foreach (var i in list)
-            {
-                output.WriteLine(
-                    string.Join(
-                        ",", new object[]
-                            {
-                                i.RequestId,
-                                i.StrategyId,
-                                i.Symbol,
-                                i.Side,
-                                i.Quantity,
-                                i.Type,
-                                i.Price,
-                                i.StopPrice,
-                                i.TimeInForce,
-                                i.Status,
-                                i.Timestamp.ToString("yyyy/MM/dd HH:mm:ss.fff"),
-                                i.LastFilledQuantity,
-                                i.LastFilledPrice,
-                                i.TotalFilledQuantity,
-                                i.TotalFilledAvgPrice,
-                                i.Description,
-                            }));
-            }
+                output.WriteLine(i.ToCsvString());
         }
 
         private static void RequestTransactionHistory(string strategy, DateTime start, TextWriter output)
@@ -248,39 +210,11 @@ namespace GoalUploader
 
             Log.DebugFormat("Got {0} entries:", list.Count);
             foreach (var i in list)
-                Log.DebugFormat("\t{0}", i);
+                Log.DebugFormat("\t{0}", i.ToHSString());
 
-            output.WriteLine(
-                string.Join(
-                    ",", new[]
-                        {
-                            "Timestamp",
-                            "StrategyId",
-                            "OrderRequestId",
-                            "Symbol",
-                            "Quantity",
-                            "Price",
-                            "Action",
-                            "Commission",
-                            "Description",
-                        }));
+            output.WriteLine(SecurityMaster.TransactionCsvHeader);
             foreach (var i in list)
-            {
-                output.WriteLine(
-                    string.Join(
-                        ",", new object[]
-                            {
-                                i.Timestamp.ToString("yyyy/MM/dd HH:mm:ss.fff"),
-                                i.StrategyId,
-                                i.OrderRequestId,
-                                i.Symbol,
-                                i.Quantity,
-                                i.Price,
-                                i.Action,
-                                i.Commission,
-                                i.Description,
-                            }));
-            }
+                output.WriteLine(i.ToCsvString());
         }
 
         private static void RequestPnl(string strategy, DateTime start, TextWriter output)
@@ -289,57 +223,11 @@ namespace GoalUploader
 
             Log.DebugFormat("Got {0} entries:", list.Count);
             foreach (var i in list)
-                Log.DebugFormat("\t{0}", i);
+                Log.DebugFormat("\t{0}", i.ToHSString());
             
-            output.WriteLine(
-                string.Join(
-                    ",", new[]
-                        {
-                            "Strategy",
-                            "Symbol",
-                            "LastClosePosition",
-                            "LastClosePrice",
-                            "LastCloseMarketValue",
-                            "TransactionCount",
-                            "BoughtAmount",
-                            "BoughtAvgPrice",
-                            "SoldAmount",
-                            "SoldAvgPrice",
-                            "ManualAdjustments",
-                            "OtherTransactions",
-                            "AvgPriceSinceOpen",
-                            "CurrentPosition",
-                            "CurrentPrice",
-                            "CurrentMarketValue",
-                            "RealizedPnl",
-                            "UnrealizedPnl",
-                            "TotalPnl",
-                        }));
+            output.WriteLine(SecurityMaster.DetailedPnlEntryCsvHeader);
             foreach (var i in list)
-                output.WriteLine(
-                    string.Join(
-                        ",", new object[]
-                            {
-                                i.Strategy,
-                                i.Symbol,
-                                i.LastClosePosition,
-                                i.LastClosePrice,
-                                i.LastCloseMarketValue,
-                                i.TransactionCount,
-                                i.BoughtAmount,
-                                i.BoughtAvgPrice,
-                                i.SoldAmount,
-                                i.SoldAvgPrice,
-                                i.ManualAdjustments,
-                                i.OtherTransactions,
-                                i.AvgPriceSinceOpen,
-                                i.CurrentPosition,
-                                i.CurrentPrice,
-                                i.CurrentMarketValue,
-                                i.RealizedPnl,
-                                i.UnrealizedPnl,
-                                i.TotalPnl,
-                            }));
+                output.WriteLine(i.ToCsvString());
         }
 
         private static void ShowUsage(string error)
@@ -379,15 +267,26 @@ Examples:
 
         private static T RemoteCall<T>(string strategy, Func<IGoalsStrategy, T> operation)
         {
-            var proxy = WebConstants.GetServiceBusProxy<IGoalsStrategy>(
-                Settings.Default.MerlinBusDomain, ProcessType.Strategy, strategy,
-                Settings.Default.MerlinBusUserName, Settings.Default.MerlinBusSharedSecret);
-
-// ReSharper disable SuspiciousTypeConversion.Global
-            using ((IDisposable) proxy)
-// ReSharper restore SuspiciousTypeConversion.Global
+            for (int attempt = 1;; ++attempt)
             {
-                return operation(proxy);
+                try
+                {
+                    var proxy = WebConstants.GetServiceBusProxy<IGoalsStrategy>(
+                        Settings.Default.MerlinBusDomain, ProcessType.Strategy, strategy,
+                        Settings.Default.MerlinBusUserName, Settings.Default.MerlinBusSharedSecret);
+// ReSharper disable SuspiciousTypeConversion.Global
+                    using ((IDisposable) proxy)
+// ReSharper restore SuspiciousTypeConversion.Global
+                    {
+                        return operation(proxy);
+                    }
+                }
+                catch (CommunicationObjectFaultedException)
+                {
+                    if (attempt >= 3)
+                        throw;
+                    Log.ErrorFormat("Communication attempt #{0} with {1} failed, retrying...", attempt, strategy);
+                }
             }
         }
     }

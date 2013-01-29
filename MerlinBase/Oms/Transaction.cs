@@ -94,12 +94,12 @@ namespace Hp.Merlin.Oms
             res.Append('x');
             res.Append(Symbol ?? "<no-symbol>");
             res.Append(" @").Append(Price);
-            if (_commission != 0)
-                res.Append(" comm=$").Append(_commission);
+            if (Commission != 0)
+                res.Append(" comm=$").Append(Commission);
             if (Timestamp != default(DateTime))
                 res.Append(' ').Append(Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff"));
-            if (_description != null)
-                res.Append(' ').Append(_description);
+            if (Description != null)
+                res.Append(' ').Append(Description);
 
             return res.ToString();
         }
