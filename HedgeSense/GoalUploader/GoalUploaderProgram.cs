@@ -107,6 +107,9 @@ namespace GoalUploader
                         case "pnl":
                             RequestPnl(strategy, start, output);
                             break;
+                        case "eodpnl":
+                            RequestEodPnl(strategy, start, output);
+                            break;
                         default:
                             ShowUsage("Unknown command: " + command);
                             break;
@@ -230,6 +233,19 @@ namespace GoalUploader
                 output.WriteLine(i.ToCsvString());
         }
 
+        private static void RequestEodPnl(string strategy, DateTime start, TextWriter output)
+        {
+            var list = RemoteCall(strategy, p => p.GetEodPnl(start));
+
+            Log.DebugFormat("Got {0} entries:", list.Count);
+            foreach (var i in list)
+                Log.DebugFormat("\t{0}", i.ToHSString());
+            
+            output.WriteLine(SecurityMaster.DetailedPnlEntryCsvHeader);
+            foreach (var i in list)
+                output.WriteLine(i.ToCsvString());
+        }
+
         private static void ShowUsage(string error)
         {
             const string usage = @"
@@ -247,6 +263,7 @@ Commands:
     orders        - Retrieves order history.
     transactions  - Retrieves transaction history.
     pnl           - Retrieves PNL report.
+    eodpnl        - Retrieves end-of-day PNL history.
 
 Options:
 
