@@ -27,6 +27,9 @@ namespace Hp.Merlin.HedgeSense
 
         [OperationContract]
         List<DetailedPnlEntry> GetPnl(DateTime start);
+
+        [OperationContract]
+        List<DetailedPnlEntry> GetEodPnl(DateTime start);
     }
 
     public static class SecurityMaster
@@ -179,11 +182,11 @@ namespace Hp.Merlin.HedgeSense
         {
             return
                 string.Format(
-                    "Strategy: {0}, Symbol: {1}, LastClosePosition: {2}, LastClosePrice: {3}, LastCloseMarketValue: {4}, TransactionCount: {5}, BoughtAmount: {6}, BoughtAvgPrice: {7}, SoldAmount: {8}, SoldAvgPrice: {9}, ManualAdjustments: {10}, OtherTransactions: {11}, AvgPriceSinceOpen: {12}, CurrentPosition: {13}, CurrentPrice: {14}, CurrentMarketValue: {15}, RealizedPnl: {16}, UnrealizedPnl: {17}, TotalPnl: {18}",
+                    "RecordDate: {19:yyyy/MM/dd}, Strategy: {0}, Symbol: {1}, LastClosePosition: {2}, LastClosePrice: {3}, LastCloseMarketValue: {4}, TransactionCount: {5}, BoughtAmount: {6}, BoughtAvgPrice: {7}, SoldAmount: {8}, SoldAvgPrice: {9}, ManualAdjustments: {10}, OtherTransactions: {11}, AvgPriceSinceOpen: {12}, CurrentPosition: {13}, CurrentPrice: {14}, CurrentMarketValue: {15}, RealizedPnl: {16}, UnrealizedPnl: {17}, TotalPnl: {18}",
                     i.Strategy, ToHSSymbol(i.Symbol), i.LastClosePosition, i.LastClosePrice, i.LastCloseMarketValue,
                     i.TransactionCount, i.BoughtAmount, i.BoughtAvgPrice, i.SoldAmount, i.SoldAvgPrice,
                     i.ManualAdjustments, i.OtherTransactions, i.AvgPriceSinceOpen, i.CurrentPosition, i.CurrentPrice,
-                    i.CurrentMarketValue, i.RealizedPnl, i.UnrealizedPnl, i.TotalPnl);
+                    i.CurrentMarketValue, i.RealizedPnl, i.UnrealizedPnl, i.TotalPnl, i.RecordDate);
         }
 
         public static string ToCsvString(this DetailedPnlEntry i)
@@ -191,6 +194,7 @@ namespace Hp.Merlin.HedgeSense
             return string.Join(
                 ",", new object[]
                     {
+                        i.RecordDate.ToString("yyyy/MM/dd"),
                         i.Strategy,
                         ToHSSymbol(i.Symbol),
                         i.LastClosePosition,
@@ -220,6 +224,7 @@ namespace Hp.Merlin.HedgeSense
                 return string.Join(
                     ",", new[]
                         {
+                            "RecordDate",
                             "Strategy",
                             "Symbol",
                             "LastClosePosition",
