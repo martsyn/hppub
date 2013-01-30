@@ -42,6 +42,7 @@ namespace Hp.Merlin.Services
         public static T GetServiceBusProxy<T>(string domain, ProcessType processType, string name, string senderName, string senderSecret)
         {
             var binding = new NetTcpRelayBinding();
+            binding.MaxReceivedMessageSize = 1024*1024;
             string address = GetServiceBusAddress<T>(domain, processType, name);
             var factory = new ChannelFactory<T>(binding, address);
             var tokenProvider = TokenProvider.CreateSharedSecretTokenProvider(senderName, senderSecret);
